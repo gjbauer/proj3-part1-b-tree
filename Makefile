@@ -1,5 +1,5 @@
 all:
-	clang -o btree-test btr.c
+	clang -o btree btr.c
 
 clean:
 	rm btree
