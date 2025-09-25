@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "config.h"
+#include "disk.h"
 
 // B-tree node structure
 typedef struct BTreeNode {
@@ -17,19 +18,19 @@ typedef struct BTreeNode {
 // ==================== B-TREE OPERATIONS ====================
 
 // B-tree core operations
-BTreeNode* btree_node_create(bool is_leaf);
+BTreeNode* btree_node_create(DiskInterface* disk, bool is_leaf);
 void btree_node_free(BTreeNode* node);
-int btree_node_read(uint64_t block_num, BTreeNode* node);
-int btree_node_write(BTreeNode* node);
-uint64_t btree_search(uint64_t root_block, uint64_t key);
-int btree_insert(uint64_t* root_block, uint64_t key, uint64_t value);
-int btree_delete(uint64_t* root_block, uint64_t key);
-void btree_split_child(BTreeNode* parent, int index, BTreeNode* child);
-void btree_merge_children(BTreeNode* parent, int index);
+int btree_node_read(DiskInterface* disk, uint64_t block_num, BTreeNode* node);
+int btree_node_write(DiskInterface* disk, BTreeNode* node);
+uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key);
+int btree_insert(DiskInterface* disk, uint64_t* root_block, uint64_t key, uint64_t value);
+int btree_delete(DiskInterface* disk, uint64_t* root_block, uint64_t key);
+void btree_split_child(DiskInterface* disk, BTreeNode* parent, int index, BTreeNode* child);
+void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index);
 
 // B-tree traversal and debugging
-void btree_traverse(uint64_t root_block, void (*callback)(uint64_t key, uint64_t value));
-void btree_validate(uint64_t root_block);
-void btree_print(uint64_t root_block, int level);
+void btree_traverse(DiskInterface* disk, uint64_t root_block, void (*callback)(uint64_t key, uint64_t value));
+void btree_validate(DiskInterface* disk, uint64_t root_block);
+void btree_print(DiskInterface* disk, uint64_t root_block, int level);
 #endif
 
