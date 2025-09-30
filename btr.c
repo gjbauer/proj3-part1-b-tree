@@ -5,6 +5,18 @@
 // B-tree core operations
 BTreeNode* btree_node_create(DiskInterface* disk, bool is_leaf)
 {
+	BTreeNode stack_node;
+	stack_node.is_leaf = is_leaf;
+	
+	int page = alloc_page(disk);
+	
+	stack_node.block_number = page;
+	
+	BTreeNode *mmap_node = (BTreeNode*)get_block(disk, page);
+	
+	memcpy((char*)mmap_node, (char*)&stack_node, sizeof(BTreeNode));
+	
+	return mmap_node;
 }
 
 void btree_node_free(BTreeNode* node)
@@ -13,10 +25,26 @@ void btree_node_free(BTreeNode* node)
 
 int btree_node_read(DiskInterface* disk, uint64_t block_num, BTreeNode* node)
 {
+	int rv;
+	BTreeNode *disk_node = (BTreeNode*)get_block(disk, block_num);
+	
+	void *ptr = memcpy((char*)node, (char*)disk_node, sizeof(BTreeNode));
+	
+	rv = (ptr==NULL) ? -1 : 0;
+	
+	return rv;
 }
 
 int btree_node_write(DiskInterface* disk, BTreeNode* node)
 {
+	int rv;
+	BTreeNode *mem_node = (BTreeNode*)get_block(disk, node->block_number);
+	
+	void *ptr = memcpy((char*)mem_node, (char*)node, sizeof(BTreeNode));
+	
+	rv = (ptr==NULL) ? -1 : 0;
+	
+	return rv;
 }
 
 uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
