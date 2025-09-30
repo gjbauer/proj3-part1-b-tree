@@ -58,17 +58,48 @@ uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
 }
 
-int btree_insert(DiskInterface* disk, uint64_t* root_block, uint64_t key, uint64_t value)
+int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key, uint64_t value)
 {
 	// TODO: Implement me first!! Might have to change root_block pointer...
+	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
+	BTreeNode *node = btree_node_create(disk, true);
+	node->key = key;
+	node->block_number = value;
+	
+	int i;
+	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
+	
+
 }
 
 int btree_delete(DiskInterface* disk, uint64_t* root_block, uint64_t key)
 {
 }
 
-void btree_split_child(DiskInterface* disk, BTreeNode* parent, int index, BTreeNode* child)
+void btree_split_node(DiskInterface* disk, BTreeNode* node, int index)
 {
+	BTreeNode new_root;
+	new_root.is_leaf = false;
+	new_root.key = 0;
+	new_root.num_keys = 1;
+	new_root.keys[0] = node->keys[index];
+	
+	BTreeNode *child_a = btree_node_create(disk, false);
+	BTreeNode *child_b = btree_node_create(disk, false);
+	
+	int i, j;
+	for (i=0, j=0; i<index; i++, j++)
+	{
+		child_a->keys[j] = node->keys[i];
+	}
+	for (i=index+1, j=0; i<MAX_KEYS; i++, j++)
+	{
+		child_a->keys[j] = node->keys[i];
+	}
+	
+	memcpy((char*)node, (char*)&new_root, sizeof(BTreeNode));
+	
+	return;
 }
 
 void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
