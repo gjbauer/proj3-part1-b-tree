@@ -3,6 +3,7 @@
 #include <string.h>
 #include "btr.h"
 #include "disk.h"
+#include "hash.h"
 
 // B-tree core operations
 BTreeNode* btree_node_create(DiskInterface* disk, bool is_leaf)
@@ -88,4 +89,8 @@ void btree_print(DiskInterface* disk, uint64_t root_block, int level)
 int main()
 {
 	// TODO: Implement B-Tree operations and begin testing them!!
+	printf("hash '/' : %u\n", hash("/"));
+	printf("hash '/a' : %u\n", hash("/a"));
+	printf("hash '/b' : %u\n", hash("/b"));
+	printf("hash '/c' : %u\n", hash("/c"));
 }
