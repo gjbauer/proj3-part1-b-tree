@@ -1,8 +1,8 @@
 all:
-	clang -o btree btr.c
+	clang -o btree btr.c disk.c bitmap.c
 
 clean:
-	rm btree
+	rm btree *.o
 
 open:
 	gedit *.h *.c

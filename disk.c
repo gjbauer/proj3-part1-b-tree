@@ -33,7 +33,7 @@ DiskInterface* disk_open(const char* filename)
 
 void disk_close(DiskInterface* disk)
 {
-	munmap(disk->disk_base, disk->fs_info.st_size);
+	munmap(disk->disk_base, disk->total_blocks * BLOCK_SIZE);
 	close(disk->disk_file);
 	free(disk);
 }

@@ -1,12 +1,17 @@
 #include <stdio.h>
 #include <limits.h>
+#include <string.h>
 #include "btr.h"
+#include "disk.h"
 
 // B-tree core operations
 BTreeNode* btree_node_create(DiskInterface* disk, bool is_leaf)
 {
 	BTreeNode stack_node;
 	stack_node.is_leaf = is_leaf;
+	stack_node.num_keys = 0;
+	memset(&stack_node.keys, 0, MAX_KEYS);
+	memset(&stack_node.children, 0, MAX_KEYS+1);
 	
 	int page = alloc_page(disk);
 	
