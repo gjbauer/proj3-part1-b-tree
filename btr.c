@@ -57,6 +57,7 @@ int btree_node_write(DiskInterface* disk, BTreeNode* node)
 
 uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
+	int rv = -1;
 	printf("Searching for key %d\n", key);
 	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
 	
@@ -66,7 +67,7 @@ uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
 		if (root->keys[i] >= key) break;
 	}
 	
-	if (root->key == key) printf("Found key!\n");
+	if (root->key == key) rv = root->block_number;
 	else if (root->keys[i] == key) {
 		btree_search(disk, root->children[i+1], key);
 	}
@@ -121,9 +122,6 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 			int index;
 			if (key < root->keys[MIN_KEYS]) index = MIN_KEYS-1;
 			else index = MIN_KEYS;
-			printf("Splitting at index %d\n", index);
-			for (int i=0; i<=index; i++) printf("Root key at index %d is %d\n", i, root->keys[i]);
-			for (int i=0; i<=index+1; i++) printf("Root child at index %d is %d\n", i, root->children[i]);
 			btree_split_node(disk, root, index);
 			btree_insert_nonfull(root, node);
 		}
@@ -146,45 +144,28 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index)
 	BTreeNode *child_a = btree_node_create(disk, false);
 	BTreeNode *child_b = btree_node_create(disk, false);
 	
-	printf("New root key = %d\n", new_root.keys[0]);
-	
 	new_root.children[0] = child_a->block_number;
 	new_root.children[1] = child_b->block_number;
-	
-	printf("New root child[0] = %d\n", new_root.children[0]);
-	printf("New root child[1] = %d\n", new_root.children[1]);
 	
 	int i, j;
 	for (i=0, j=0; i<index; i++, j++, child_a->num_keys++)
 	{
-		printf("Placing old root key in new child a at index %d of value %d\n", j, node->keys[i]);
 		child_a->keys[j] = node->keys[i];
-		printf("Child a key at %d = %d\n", j, child_a->keys[j]);
 	}
 	for (i=0, j=0; i<=index; i++, j++)
 	{
-		printf("Placing old root child in new child a at index %d of value %d\n", j, node->children[i]);
 		child_a->children[j] = node->children[i];
-		printf("Child a child at %d = %d\n", j, child_a->children[j]);
 	}
 	for (i=index, j=0; i<MAX_KEYS; i++, j++, child_b->num_keys++)
 	{
-		printf("Placing old root key in new child b at index %d of value %d\n", j, node->keys[i]);
 		child_b->keys[j] = node->keys[i];
-		printf("Child b key at %d = %d\n", j, child_b->keys[j]);
 	}
 	for (i=index+1, j=1; i<=MAX_KEYS; i++, j++)
 	{
-		printf("Placing old root child in new child b at index %d of value %d\n", j, node->children[i]);
 		child_b->children[j] = node->children[i];
-		printf("Child b child at %d = %d\n", j, child_b->children[j]);
 	}
 	
 	memcpy((char*)node, (char*)&new_root, sizeof(BTreeNode));
-	
-	printf("Node num_keys = %d\n", node->num_keys);
-	
-	printf("Node keys[0] = %d\n", node->keys[0]);
 	
 	return;
 }

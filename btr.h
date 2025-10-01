@@ -9,7 +9,8 @@
 typedef struct BTreeNode {
     uint64_t block_number;		// Physical block number on disk
     bool is_leaf;			// Whether this is a leaf node
-    uint64_t key;			// Actual key of node
+    uint64_t key;			// Actual key of node (if node is leaf)
+    uint64_t value;			// Key value pair (B+Tree indexes directory inodes)
     uint16_t num_keys;			// Current number of keys
     uint64_t keys[MAX_KEYS];		// Array of keys (could be inode numbers)
     uint64_t children[MAX_KEYS + 1];	// Array of child block numbers
