@@ -2,6 +2,7 @@
 #define BITMAP_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 int bitmap_get(void* bm, int ii);
 void bitmap_put(void* bm, int ii, int vv);

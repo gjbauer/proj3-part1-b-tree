@@ -41,63 +41,64 @@ void disk_close(DiskInterface* disk)
 void*
 get_block(DiskInterface* disk, int pnum)
 {
-    return disk->disk_base + BLOCK_SIZE * pnum;
+	printf("Getting block number %d\n", pnum);
+	return disk->disk_base + BLOCK_SIZE * pnum;
 }
 
 void*
 get_superblock(DiskInterface* disk)
 {
-    return get_block(disk, 0);
+	return get_block(disk, 0);
 }
 
 
 void*
 get_block_bitmap(DiskInterface* disk)
 {
-    return get_block(disk, 1);
+	return get_block(disk, 0);
 }
 
 void*
 get_inode_bitmap(DiskInterface* disk)
 {
-    return get_block(disk, 2);
+	return get_block(disk, 2);
 }
 
 void*
 get_inode_start(DiskInterface* disk)
 {
-    return get_block(disk, 3);
+	return get_block(disk, 3);
 }
 
 /* void*
  * get_root_start()
  * {
- *     return get_block(disk, 6);	TODO: Have a minimum partition size and set the correct corresponding block offset for the root inode
+ *	 return get_block(disk, 6);	TODO: Have a minimum partition size and set the correct corresponding block offset for the root inode
  * }
  */
 
 int
 alloc_page(DiskInterface* disk)
 {
-    void* pbm = get_block_bitmap(disk);
+	void* pbm = get_block_bitmap(disk);
 
-    for (int ii = 1; ii < disk->total_blocks; ++ii) {
-        if (!bitmap_get(pbm, ii)) {
-            bitmap_put(pbm, ii, 1);
-            printf("+ alloc_page() -> %d\n", ii);
-            return ii;
-        }
-    }
+	for (int ii = 0; ii < disk->total_blocks; ++ii) {
+		if (!bitmap_get(pbm, ii)) {
+			bitmap_put(pbm, ii, 1);
+			printf("+ alloc_page() -> %d\n", ii);
+			return ii;
+		}
+	}
 
-    return -1;
+	return -1;
 }
 
 void
 free_page(DiskInterface* disk, int pnum)
 {
-    printf("+ free_page(%d)\n", pnum);
-    void* pbm = get_block_bitmap(disk);
-    bitmap_put(pbm, pnum, 0);
+	printf("+ free_page(%d)\n", pnum);
+	void* pbm = get_block_bitmap(disk);
+	bitmap_put(pbm, pnum, 0);
 }
 
 int disk_read_block(DiskInterface* disk, uint64_t block_num, void* buffer)

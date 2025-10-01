@@ -56,20 +56,64 @@ int btree_node_write(DiskInterface* disk, BTreeNode* node)
 
 uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
+	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
+	BTreeNode *node;
+	int i;
+	for(i=0; i<MAX_KEYS && root->keys[i]!=0; i++)
+	{
+		if (root->keys[i] >= key) break;
+	}
+	
+	node = (BTreeNode*)get_block(disk, root->children[i]);
+	printf("Node key = %ld\n", node->key);
+	
+	if (node->key == key) printf("Found key!\n");
+	else if (node->is_leaf) printf("Did not find key!\n");
+	//else btree_search(disk, node->block_number, key);
+	
 }
 
-int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key, uint64_t value)
+int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
-	// TODO: Implement me first!! Might have to change root_block pointer...
 	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
 	BTreeNode *node = btree_node_create(disk, true);
+	BTreeNode stack_node, stack_root;
 	node->key = key;
-	node->block_number = value;
 	
 	int i;
 	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
 	
-
+	if (root->num_keys < MAX_KEYS)
+	{
+		if (root->keys[i]!=0 && root->keys[i] > key)
+		{
+			for(int j=MAX_KEYS-1; j>i; j--)
+			{
+				root->keys[j] = root->keys[j-1];
+				root->children[j] = root->children[j-1];
+			}
+		}
+		if (!root->keys[i]) root->keys[i] = key;
+		if (root->keys[i] >= key)
+		{
+			printf("Placing node with key %lu at position %d\n", key, i+1);
+			root->keys[i] = key;
+			root->children[i+1] = node->block_number;
+		}
+		else
+		{
+			printf("Placing node with key %lu at position %d\n", key, i);
+			root->children[i] = node->block_number;
+		}
+	}
+	else
+	{
+		int index;
+		if (key < root->keys[MIN_KEYS]) index = MIN_KEYS-1;
+		else index = MIN_KEYS;
+		btree_split_node(disk, root, index);
+		btree_insert(disk, root_block, key);
+	}
 }
 
 int btree_delete(DiskInterface* disk, uint64_t* root_block, uint64_t key)
@@ -127,4 +171,13 @@ int main()
 	printf("hash '/b' : %u\n", hash("/b"));
 	printf("hash '/c' : %u\n", hash("/c"));
 	printf("sizeof(node) : %lu\n", sizeof(BTreeNode));
+	DiskInterface* disk = disk_open("my.img");
+	alloc_page(disk);
+	void* pbm = get_block_bitmap(disk);
+	bitmap_print(pbm, disk->total_blocks);
+	BTreeNode *root = btree_node_create(disk, false);
+	btree_insert(disk, root->block_number, hash("/a"));
+	bitmap_print(pbm, disk->total_blocks);
+	btree_insert(disk, root->block_number, hash("/"));
+	btree_search(disk, root->block_number, hash("/a"));
 }
