@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <string.h>
+#include <errno.h>
 #include "btr.h"
 #include "disk.h"
 #include "hash.h"
@@ -67,7 +68,10 @@ uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
 		if (root->keys[i] >= key) break;
 	}
 	
-	if (root->key == key) rv = root->block_number;
+	if (root->key == key) {
+		printf("Found key!\n");
+		rv = root->block_number;
+	}
 	else if (root->keys[i] == key) {
 		btree_search(disk, root->children[i+1], key);
 	}
@@ -77,6 +81,7 @@ uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	}
 	else printf("Did not find key!\n");
 	
+	return rv;
 }
 
 int btree_insert_nonfull(BTreeNode *root, BTreeNode *node)
@@ -120,9 +125,7 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 		else
 		{
 			int index;
-			if (key < root->keys[MIN_KEYS]) index = MIN_KEYS-1;
-			else index = MIN_KEYS;
-			btree_split_node(disk, root, index);
+			btree_split_node(disk, root, MIN_KEYS);
 			btree_insert_nonfull(root, node);
 		}
 	}
