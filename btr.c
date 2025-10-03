@@ -13,6 +13,8 @@ BTreeNode* btree_node_create(DiskInterface* disk, bool is_leaf)
 	stack_node.is_leaf = is_leaf;
 	stack_node.key = 0;
 	stack_node.num_keys = 0;
+	stack_node.value = 0;
+	stack_node.parent = 0;
 	
 	for(int i=0; i<MAX_KEYS; i++) stack_node.keys[i]=0;
 	for(int i=0; i<=MAX_KEYS; i++) stack_node.children[i]=0;
@@ -28,8 +30,9 @@ BTreeNode* btree_node_create(DiskInterface* disk, bool is_leaf)
 	return mmap_node;
 }
 
-void btree_node_free(BTreeNode* node)
+void btree_node_free(DiskInterface* disk, BTreeNode* node)
 {
+	free_page(disk, node->block_number);
 }
 
 int btree_node_read(DiskInterface* disk, uint64_t block_num, BTreeNode* node)
@@ -73,11 +76,11 @@ uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
 		rv = root->block_number;
 	}
 	else if (root->keys[i] == key) {
-		btree_search(disk, root->children[i+1], key);
+		return btree_search(disk, root->children[i+1], key);
 	}
 	else if (root->keys[i] > key && root->children[i]!=0)
 	{
-		btree_search(disk, root->children[i], key);
+		return btree_search(disk, root->children[i], key);
 	}
 	else printf("Did not find key!\n");
 	
@@ -93,12 +96,13 @@ int btree_insert_nonfull(BTreeNode *root, BTreeNode *node)
 		for(int j=MAX_KEYS-1; j>i; j--)
 		{
 			root->keys[j] = root->keys[j-1];
-			root->children[j] = root->children[j];
+			root->children[j+1] = root->children[j];
 		}
 		root->keys[i] = node->key;
+		node->parent=root->block_number;
 		root->num_keys++;
 	}
-	else if (!root->keys[i]) root->keys[i] = node->key, root->num_keys++;;
+	else if (!root->keys[i]) root->keys[i] = node->key, node->parent=root->block_number, root->num_keys++;;
 	printf("Placing node with key %lu at position %d\n", node->key, i+1);
 	printf("Block number = %d\n", node->block_number);
 	root->children[i+1] = node->block_number;
@@ -121,6 +125,7 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 			printf("Placing node with key %lu at position %d\n", key, 0);
 			printf("Block number = %d\n", node->block_number);
 			root->children[0] = node->block_number;
+			node->parent=root->block_number;
 		}
 		else
 		{
@@ -131,8 +136,55 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	}
 }
 
-int btree_delete(DiskInterface* disk, uint64_t* root_block, uint64_t key)
+void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
+	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
+	BTreeNode *first_child = (BTreeNode*)get_block(disk, root->children[0]);
+	int i;
+	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
+	
+	if (root->keys[i] == key)
+	{
+		for(int j=i; j<MAX_KEYS-1; j--)
+		{
+			root->keys[j] = root->keys[j+1];
+			root->children[j+1] = root->children[j+2];
+		}
+		root->keys[MAX_KEYS-1] = 0;
+		root->children[MAX_KEYS] = 0;
+		root->num_keys--;
+		/*if (root->num_keys==0)
+		{
+			BTreeNode *temp = (BTreeNode*)get_block(disk, root->children[1]);
+			// TODO: Implement a get minimum of subtree function
+		}*/
+		if (root->parent != 0)
+		{
+			btree_remove_key(disk, root->parent, key);
+		}
+	}
+	else if (i==0 && first_child->is_leaf)
+	{
+		root->children[0] = 0;
+		root->num_keys--;
+	}
+	
+	return;
+}
+
+int btree_delete(DiskInterface* disk, uint64_t root_block, uint64_t key)
+{
+	int rv = btree_search(disk, root_block, key);
+	BTreeNode *node;
+	
+	if (rv!=-1)
+	{
+		node = (BTreeNode*)get_block(disk, rv);
+		btree_node_free(disk, node);
+		btree_remove_key(disk, node->parent, key);
+	}
+	
+	return rv;
 }
 
 void btree_split_node(DiskInterface* disk, BTreeNode* node, int index)
@@ -149,6 +201,9 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index)
 	
 	new_root.children[0] = child_a->block_number;
 	new_root.children[1] = child_b->block_number;
+	
+	child_a->parent = new_root.block_number;
+	child_b->parent = new_root.block_number;
 	
 	int i, j;
 	for (i=0, j=0; i<index; i++, j++, child_a->num_keys++)
@@ -215,5 +270,13 @@ int main()
 	bitmap_print(pbm, disk->total_blocks);
 	btree_search(disk, root->block_number, hash("/a"));
 	btree_search(disk, root->block_number, hash("/b"));
+	btree_search(disk, root->block_number, hash("/f"));
+	btree_delete(disk, root->block_number, hash("/e"));
+	btree_search(disk, root->block_number, hash("/e"));
+	btree_search(disk, root->block_number, hash("/a"));
+	btree_search(disk, root->block_number, hash("/d"));
+	btree_insert(disk, root->block_number, hash("/f"));
+	btree_delete(disk, root->block_number, hash("/a"));
+	btree_search(disk, root->block_number, hash("/a"));
 	btree_search(disk, root->block_number, hash("/f"));
 }
