@@ -143,9 +143,10 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	int i;
 	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
 	
+	printf("Removing key %ld from block %ld\n", key, root_block);
 	if (root->keys[i] == key)
 	{
-		for(int j=i; j<MAX_KEYS-1; j--)
+		for(int j=i; j<MAX_KEYS-1; j++)
 		{
 			root->keys[j] = root->keys[j+1];
 			root->children[j+1] = root->children[j+2];
@@ -163,7 +164,7 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 			btree_remove_key(disk, root->parent, key);
 		}
 	}
-	else if (i==0 && first_child->is_leaf)
+	else if (i==0)
 	{
 		root->children[0] = 0;
 		root->num_keys--;
@@ -199,6 +200,8 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index)
 	BTreeNode *child_a = btree_node_create(disk, false);
 	BTreeNode *child_b = btree_node_create(disk, false);
 	
+	BTreeNode *grandchild;
+	
 	new_root.children[0] = child_a->block_number;
 	new_root.children[1] = child_b->block_number;
 	
@@ -213,6 +216,8 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index)
 	for (i=0, j=0; i<=index; i++, j++)
 	{
 		child_a->children[j] = node->children[i];
+		grandchild = (BTreeNode*)get_block(disk, child_a->children[j]);
+		grandchild->parent = child_a->block_number;
 	}
 	for (i=index, j=0; i<MAX_KEYS; i++, j++, child_b->num_keys++)
 	{
@@ -221,6 +226,8 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index)
 	for (i=index+1, j=1; i<=MAX_KEYS; i++, j++)
 	{
 		child_b->children[j] = node->children[i];
+		grandchild = (BTreeNode*)get_block(disk, child_b->children[j]);
+		grandchild->parent = child_b->block_number;
 	}
 	
 	memcpy((char*)node, (char*)&new_root, sizeof(BTreeNode));
