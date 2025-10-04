@@ -143,9 +143,9 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	int i;
 	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
 	
-	printf("Removing key %ld from block %ld\n", key, root_block);
 	if (root->keys[i] == key)
 	{
+		printf("Removing key %ld from block %ld\n", key, root_block);
 		for(int j=i; j<MAX_KEYS-1; j++)
 		{
 			root->keys[j] = root->keys[j+1];
