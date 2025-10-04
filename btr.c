@@ -136,6 +136,19 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	}
 }
 
+int btree_find_minimum(DiskInterface* disk, uint64_t root_block)
+{
+	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
+	
+	if (root->children[0]!=0)
+	{
+		BTreeNode *first_child = (BTreeNode*)get_block(disk, root->children[0]);
+		if (first_child->is_leaf) return first_child->key;
+		else return btree_find_minimum(disk, first_child->block_number);
+	}
+	else return root->keys[0];
+}
+
 void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
 	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
@@ -154,11 +167,11 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 		root->keys[MAX_KEYS-1] = 0;
 		root->children[MAX_KEYS] = 0;
 		root->num_keys--;
-		/*if (root->num_keys==0)
+		if (root->num_keys==0)
 		{
-			BTreeNode *temp = (BTreeNode*)get_block(disk, root->children[1]);
-			// TODO: Implement a get minimum of subtree function
-		}*/
+			root->keys[0] = btree_find_minimum(disk, root_block);
+			root->num_keys++;
+		}
 		if (root->parent != 0)
 		{
 			btree_remove_key(disk, root->parent, key);
