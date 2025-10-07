@@ -108,6 +108,23 @@ int btree_insert_nonfull(BTreeNode *root, BTreeNode *node)
 	root->children[i+1] = node->block_number;
 }
 
+int btree_insertion_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
+{
+	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
+	
+	int i;
+	for(i=0; i<MAX_KEYS && root->keys[i]!=0; i++)
+	{
+		if (root->keys[i] >= key) break;
+	}
+	
+	if (root->is_leaf) return root->parent;
+	else if (root->keys[i] > key && root->children[i]!=0)
+	{
+		return btree_insertion_search(disk, root->children[i], key);
+	}
+}
+
 int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
 	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
@@ -155,17 +172,17 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	BTreeNode *first_child = (BTreeNode*)get_block(disk, root->children[0]);
 	int i;
 	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
-	
+	// TODO: Merge children if num_keys < MIN_KEYS
 	if (root->keys[i] == key)
 	{
 		printf("Removing key %ld from block %ld\n", key, root_block);
-		for(int j=i; j<MAX_KEYS-1; j++)
+		for(int j=i; j<root->num_keys-1; j++)
 		{
 			root->keys[j] = root->keys[j+1];
 			root->children[j+1] = root->children[j+2];
 		}
-		root->keys[MAX_KEYS-1] = 0;
-		root->children[MAX_KEYS] = 0;
+		root->keys[root->num_keys-1] = 0;
+		root->children[root->num_keys] = 0;
 		root->num_keys--;
 		if (root->num_keys==0)
 		{
