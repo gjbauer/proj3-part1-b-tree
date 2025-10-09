@@ -62,7 +62,7 @@ int btree_node_write(DiskInterface* disk, BTreeNode* node)
 uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
 	int rv = -1;
-	printf("Searching for key %d\n", key);
+	//printf("Searching for key %lu\n", key);
 	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
 	
 	int i;
@@ -87,70 +87,17 @@ uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	return rv;
 }
 
-int btree_insert_nonfull(BTreeNode *root, BTreeNode *node)
+int btree_find_height(DiskInterface* disk, uint64_t node_block)
 {
-	int i;
-	for(i=0; i<MAX_KEYS && root->keys[i] < node->key && root->keys[i]!=0; i++);
-	if (root->keys[i]!=0 && root->keys[i] > node->key)
-	{
-		for(int j=MAX_KEYS-1; j>i; j--)
-		{
-			root->keys[j] = root->keys[j-1];
-			root->children[j+1] = root->children[j];
-		}
-		root->keys[i] = node->key;
-		node->parent=root->block_number;
-		root->num_keys++;
-	}
-	else if (!root->keys[i]) root->keys[i] = node->key, node->parent=root->block_number, root->num_keys++;;
-	printf("Placing node with key %lu at position %d\n", node->key, i+1);
-	printf("Block number = %d\n", node->block_number);
-	root->children[i+1] = node->block_number;
-}
-
-int btree_insertion_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
-{
-	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
+	BTreeNode *node = (BTreeNode*)get_block(disk, node_block);
 	
-	int i;
-	for(i=0; i<MAX_KEYS && root->keys[i]!=0; i++)
+	int height=0;
+	while (node->parent!=0)
 	{
-		if (root->keys[i] >= key) break;
+		node = (BTreeNode*)get_block(disk, node->parent);
+		height++;
 	}
-	
-	if (root->is_leaf) return root->parent;
-	else if (root->keys[i] > key && root->children[i]!=0)
-	{
-		return btree_insertion_search(disk, root->children[i], key);
-	}
-}
-
-int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
-{
-	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
-	BTreeNode *node = btree_node_create(disk, true);
-	node->key = key;
-	
-	if (root->num_keys < MAX_KEYS)
-	{
-		btree_insert_nonfull(root, node);
-	}
-	else
-	{
-		if (root->keys[0] > key)
-		{
-			printf("Placing node with key %lu at position %d\n", key, 0);
-			printf("Block number = %d\n", node->block_number);
-			root->children[0] = node->block_number;
-			node->parent=root->block_number;
-		}
-		else
-		{
-			int index;
-			btree_split_node(disk, root, MIN_KEYS);
-			btree_insert_nonfull(root, node);
-		}
-	}
+	return height;
 }
 
 int btree_find_minimum(DiskInterface* disk, uint64_t root_block)
@@ -164,6 +111,117 @@ int btree_find_minimum(DiskInterface* disk, uint64_t root_block)
 		else return btree_find_minimum(disk, first_child->block_number);
 	}
 	else return root->keys[0];
+}
+
+int btree_insert_nonfull(BTreeNode *root, BTreeNode *node)
+{
+	int i;
+	for(i=0; i<root->num_keys && root->keys[i] < node->key; i++);
+	for(int j=root->num_keys; j>i; j--) {
+		root->keys[j] = root->keys[j-1];
+		root->children[j+1] = root->children[j];
+	}
+	root->keys[i] = node->key;
+	root->children[i+1] = node->block_number;
+	node->parent = root->block_number;
+	root->num_keys++;
+	
+	printf("Placing node with key %lu at position %d\n", node->key, i);
+	printf("Block number = %lu\n", node->block_number);
+	
+	return 0;
+}
+
+int btree_insertion_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
+{
+	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
+	
+	int i;
+	for(i=0; i<MAX_KEYS && root->keys[i]!=0; i++)
+	{
+		if (root->keys[i] >= key) break;
+	}
+	
+	if (root->is_leaf) 
+	{
+		printf("returning %lu\n", root->parent);
+		return root->parent;
+	}
+	
+	uint64_t child = 0;
+	if (i < MAX_KEYS && root->keys[i] > key)
+	{
+		child = root->children[i];
+	}
+	else if (i < MAX_KEYS)
+	{
+		child = root->children[i+1];
+	}
+	
+	if (child == 0) {
+		return root->block_number;
+	}
+	
+	return btree_insertion_search(disk, child, key);
+}
+
+int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
+{
+	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
+	BTreeNode *node = btree_node_create(disk, true);
+	node->key = key;
+	
+	if (root->num_keys > 0)
+	{
+		int target_block = btree_insertion_search(disk, root_block, key);
+		BTreeNode *target = (BTreeNode*)get_block(disk, target_block);
+		
+		if (target->num_keys == MAX_KEYS) {
+			if (key > target->keys[0] && target->children[0]==0)
+			{
+				for (int i=0; i<MAX_KEYS-1; i++)
+				{
+					target->keys[i] = target->keys[i+1];
+				}
+				target->keys[MAX_KEYS-1] = 0;
+				for (int i=0; i<MAX_KEYS; i++)
+				{
+					target->children[i] = target->children[i+1];
+				}
+				target->children[MAX_KEYS] = 0;
+				target->num_keys--;
+			}
+			else
+			{
+				if (target->parent!=0) {
+					BTreeNode *parent = (BTreeNode*)get_block(disk, target->parent);
+					int i;
+					for(i=0; i<MAX_KEYS && parent->keys[i] < btree_find_minimum(disk, target->block_number) && parent->keys[i]!=0; i++);
+					btree_split_node(disk, parent, i, target);
+					target_block = btree_insertion_search(disk, root_block, key);
+					target = (BTreeNode*)get_block(disk, target_block);
+				}
+				else
+				{
+					btree_split_root(disk, target);
+					target_block = btree_insertion_search(disk, root_block, key);
+					target = (BTreeNode*)get_block(disk, target_block);
+				}
+			}
+		}
+		btree_insert_nonfull(target, node);
+	}
+	else
+	{
+		printf("Placing node with key %lu at position %d\n", key, 0);
+		printf("Block number = %lu\n", node->block_number);
+		root->keys[0] = key;
+		root->children[1] = node->block_number;
+		node->parent=root->block_number;
+		root->num_keys++;
+	}
+	
+	return 0;
 }
 
 void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
@@ -218,51 +276,105 @@ int btree_delete(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	return rv;
 }
 
-void btree_split_node(DiskInterface* disk, BTreeNode* node, int index)
+void btree_split_root(DiskInterface* disk, BTreeNode* root)
 {
-	BTreeNode new_root;
-	new_root.is_leaf = false;
-	new_root.key = 0;
-	new_root.num_keys = 1;
-	new_root.keys[0] = node->keys[index];
-	new_root.block_number = node->block_number;
-	
 	BTreeNode *child_a = btree_node_create(disk, false);
 	BTreeNode *child_b = btree_node_create(disk, false);
 	
-	BTreeNode *grandchild;
-	
-	new_root.children[0] = child_a->block_number;
-	new_root.children[1] = child_b->block_number;
-	
-	child_a->parent = new_root.block_number;
-	child_b->parent = new_root.block_number;
-	
-	int i, j;
-	for (i=0, j=0; i<index; i++, j++, child_a->num_keys++)
-	{
-		child_a->keys[j] = node->keys[i];
-	}
-	for (i=0, j=0; i<=index; i++, j++)
-	{
-		child_a->children[j] = node->children[i];
-		grandchild = (BTreeNode*)get_block(disk, child_a->children[j]);
-		grandchild->parent = child_a->block_number;
-	}
-	for (i=index, j=0; i<MAX_KEYS; i++, j++, child_b->num_keys++)
-	{
-		child_b->keys[j] = node->keys[i];
-	}
-	for (i=index+1, j=1; i<=MAX_KEYS; i++, j++)
-	{
-		child_b->children[j] = node->children[i];
-		grandchild = (BTreeNode*)get_block(disk, child_b->children[j]);
-		grandchild->parent = child_b->block_number;
+	for (int i = 0; i < MIN_KEYS; i++) {
+		child_a->keys[i] = root->keys[i];
+		child_a->num_keys++;
 	}
 	
-	memcpy((char*)node, (char*)&new_root, sizeof(BTreeNode));
+	for (int i = MIN_KEYS; i < root->num_keys; i++) {
+		child_b->keys[i - MIN_KEYS] = root->keys[i];
+		child_b->num_keys++;
+	}
 	
-	return;
+	if (!root->is_leaf) {
+		for (int i = 0; i <= MIN_KEYS; i++) {
+			child_a->children[i] = root->children[i];
+			if (root->children[i] != 0) {
+				BTreeNode *grandchild = (BTreeNode*)get_block(disk, root->children[i]);
+				grandchild->parent = child_a->block_number;
+			}
+		}
+		for (int i = MIN_KEYS + 1; i <= root->num_keys; i++) {
+			child_b->children[i - MIN_KEYS - 1] = root->children[i];
+			if (root->children[i] != 0) {
+				BTreeNode *grandchild = (BTreeNode*)get_block(disk, root->children[i]);
+				grandchild->parent = child_b->block_number;
+			}
+		}
+	}
+	
+	root->is_leaf = false;
+	root->num_keys = 1;
+	root->keys[0] = root->keys[MIN_KEYS];
+	root->children[0] = child_a->block_number;
+	root->children[1] = child_b->block_number;
+	
+	for (int i = 1; i < MAX_KEYS; i++) {
+		root->keys[i] = 0;
+	}
+	for (int i = 2; i <= MAX_KEYS; i++) {
+		root->children[i] = 0;
+	}
+	
+	child_a->parent = root->block_number;
+	child_b->parent = root->block_number;
+}
+
+void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode* child)
+{
+	BTreeNode *child_b = btree_node_create(disk, child->is_leaf);
+	child_b->parent = node->block_number;
+	
+	for (int i = MIN_KEYS; i < child->num_keys; i++) {
+		child_b->keys[i - MIN_KEYS] = child->keys[i];
+		child->keys[i] = 0;
+		child_b->num_keys++;
+	}
+	
+	if (!child->is_leaf) {
+		for (int i = MIN_KEYS + 1; i <= child->num_keys; i++) {
+			child_b->children[i - MIN_KEYS - 1] = child->children[i];
+			child->children[i] = 0;
+			if (child_b->children[i - MIN_KEYS - 1] != 0) {
+				BTreeNode *grandchild = (BTreeNode*)get_block(disk, child_b->children[i - MIN_KEYS - 1]);
+				grandchild->parent = child_b->block_number;
+			}
+		}
+	}
+	
+	child->num_keys = MIN_KEYS;
+	
+	uint64_t promoted_key = child->keys[MIN_KEYS];
+	child->keys[MIN_KEYS] = 0;
+	child->num_keys--;
+	
+	if (node->num_keys < MAX_KEYS) {
+		for (int i = node->num_keys; i > index; i--) {
+			node->keys[i] = node->keys[i - 1];
+			node->children[i + 1] = node->children[i];
+		}
+		
+		node->keys[index] = promoted_key;
+		node->children[index + 1] = child_b->block_number;
+		node->num_keys++;
+	} else {
+		if (node->parent != 0) {
+			BTreeNode *grandparent = (BTreeNode*)get_block(disk, node->parent);
+			int parent_index;
+			for (parent_index = 0; parent_index <= grandparent->num_keys; parent_index++) {
+				if (grandparent->children[parent_index] == node->block_number) break;
+			}
+			btree_split_node(disk, grandparent, parent_index, node);
+		} else {
+			btree_split_root(disk, node);
+		}
+		btree_split_node(disk, node, index, child);
+	}
 }
 
 void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
@@ -282,38 +394,60 @@ void btree_print(DiskInterface* disk, uint64_t root_block, int level)
 {
 }
 
+void debug_print_node(DiskInterface* disk, uint64_t block_num, int level) {
+    BTreeNode *node = (BTreeNode*)get_block(disk, block_num);
+    printf("%*sBlock %lu: ", level*2, "", block_num);
+    
+    if (node->is_leaf) {
+        printf("LEAF key=%lu parent=%lu\n", node->key, node->parent);
+    } else {
+    	printf("node->num_keys=%d\n", node->num_keys);
+        printf("INTERNAL keys=[");
+        for(int i = 0; i < node->num_keys; i++) {
+            printf("%lu", node->keys[i]);
+            if (i < node->num_keys-1) printf(",");
+        }
+        printf("] children=[");
+        for(int i = 0; i <= node->num_keys; i++) {
+            printf("%lu", node->children[i]);
+            if (i < node->num_keys) printf(",");
+        }
+        printf("]\n");
+        
+        // Recursively print children
+        for(int i = 0; i <= node->num_keys; i++) {
+            if (node->children[i] != 0) {
+                debug_print_node(disk, node->children[i], level+1);
+            }
+        }
+    }
+}
+
 int main()
 {
-	// TODO: Implement B-Tree operations and begin testing them!!
-	printf("hash '/' : %u\n", hash("/"));
-	printf("hash '/a' : %u\n", hash("/a"));
-	printf("hash '/b' : %u\n", hash("/b"));
-	printf("hash '/c' : %u\n", hash("/c"));
-	printf("sizeof(node) : %lu\n", sizeof(BTreeNode));
 	DiskInterface* disk = disk_open("my.img");
 	alloc_page(disk);
-	void* pbm = get_block_bitmap(disk);
-	bitmap_print(pbm, disk->total_blocks);
 	BTreeNode *root = btree_node_create(disk, false);
-	btree_insert(disk, root->block_number, hash("/a"));
-	bitmap_print(pbm, disk->total_blocks);
-	//btree_insert(disk, root->block_number, hash("/"));
-	//btree_split_node(disk, root, 1);
-	btree_insert(disk, root->block_number, hash("/b"));
-	btree_insert(disk, root->block_number, hash("/"));
-	btree_insert(disk, root->block_number, hash("/c"));
-	btree_insert(disk, root->block_number, hash("/d"));
-	btree_insert(disk, root->block_number, hash("/e"));
-	bitmap_print(pbm, disk->total_blocks);
-	btree_search(disk, root->block_number, hash("/a"));
-	btree_search(disk, root->block_number, hash("/b"));
-	btree_search(disk, root->block_number, hash("/f"));
-	btree_delete(disk, root->block_number, hash("/e"));
-	btree_search(disk, root->block_number, hash("/e"));
-	btree_search(disk, root->block_number, hash("/a"));
-	btree_search(disk, root->block_number, hash("/d"));
-	btree_insert(disk, root->block_number, hash("/f"));
-	btree_delete(disk, root->block_number, hash("/a"));
-	btree_search(disk, root->block_number, hash("/a"));
-	btree_search(disk, root->block_number, hash("/f"));
+	while (true) {
+	printf("Select 1 to insert a key, and 2 to search for a key, and 3 for debug print: ");
+	int choice, key;
+	scanf("%d", &choice);
+	switch (choice) {
+		case 1:
+			printf("Key to insert: ");
+			scanf("%d", &key);
+			btree_insert(disk, root->block_number, key);
+			break;
+		case 2:
+			printf("Key to search: ");
+			scanf("%d", &key);
+			btree_search(disk, root->block_number, key);
+			break;
+		case 3:
+			debug_print_node(disk, root->block_number, 1);
+			break;
+		default:
+			return 0;
+	}
+	}
 }

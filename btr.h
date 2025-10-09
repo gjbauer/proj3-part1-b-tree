@@ -27,7 +27,8 @@ int btree_node_write(DiskInterface* disk, BTreeNode* node);
 uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key);
 int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key);
 int btree_delete(DiskInterface* disk, uint64_t root_block, uint64_t key);
-void btree_split_node(DiskInterface* disk, BTreeNode* node, int index);
+void btree_split_root(DiskInterface* disk, BTreeNode* root);
+void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode* child);
 void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index);
 
 // B-tree traversal and debugging
