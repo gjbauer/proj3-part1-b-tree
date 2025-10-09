@@ -41,7 +41,6 @@ void disk_close(DiskInterface* disk)
 void*
 get_block(DiskInterface* disk, int pnum)
 {
-	printf("Getting block number %d\n", pnum);
 	return disk->disk_base + BLOCK_SIZE * pnum;
 }
 
