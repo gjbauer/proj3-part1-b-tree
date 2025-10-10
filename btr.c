@@ -232,14 +232,22 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	return 0;
 }
 
+int btree_borrow_left(DiskInterface* disk, uint64_t root_block)
+{
+}
+
+int btree_borrow_right(DiskInterface* disk, uint64_t root_block)
+{
+}
+
 void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
 	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
-	BTreeNode *first_child = (BTreeNode*)get_block(disk, root->children[0]);
 	int i;
 	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
+	printf("i=%d\m". i);
 	// TODO: Merge children if num_keys < MIN_KEYS
-	if (root->keys[i] == key)
+	/*if (root->keys[i] == key)
 	{
 		printf("Removing key %ld from block %ld\n", key, root_block);
 		for(int j=i; j<root->num_keys-1; j++)
@@ -259,12 +267,7 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 		{
 			btree_remove_key(disk, root->parent, key);
 		}
-	}
-	else if (i==0)
-	{
-		root->children[0] = 0;
-		root->num_keys--;
-	}
+	}*/
 	
 	return;
 }
@@ -430,6 +433,7 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 
 void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 {
+	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
 }
 
 // B-tree traversal and debugging
