@@ -9,25 +9,22 @@
 // B-tree core operations
 BTreeNode* btree_node_create(DiskInterface* disk, bool is_leaf)
 {
-	BTreeNode stack_node;
-	stack_node.is_leaf = is_leaf;
-	stack_node.key = 0;
-	stack_node.num_keys = 0;
-	stack_node.value = 0;
-	stack_node.parent = 0;
-	
-	for(int i=0; i<MAX_KEYS; i++) stack_node.keys[i]=0;
-	for(int i=0; i<=MAX_KEYS; i++) stack_node.children[i]=0;
-	
 	int page = alloc_page(disk);
 	
-	stack_node.block_number = page;
+	BTreeNode *node = (BTreeNode*)get_block(disk, page);
 	
-	BTreeNode *mmap_node = (BTreeNode*)get_block(disk, page);
+	node->block_number = page;
 	
-	memcpy((char*)mmap_node, (char*)&stack_node, sizeof(BTreeNode));
+	node->is_leaf = is_leaf;
+	node->key = 0;
+	node->num_keys = 0;
+	node->value = 0;
+	node->parent = 0;
 	
-	return mmap_node;
+	for(int i=0; i<MAX_KEYS; i++) node->keys[i]=0;
+	for(int i=0; i<=MAX_KEYS; i++) node->children[i]=0;
+	
+	return node;
 }
 
 void btree_node_free(DiskInterface* disk, BTreeNode* node)
@@ -75,9 +72,7 @@ uint64_t btree_search(DiskInterface* disk, uint64_t node_block, uint64_t key)
 		for (int i = 0; i <= node->num_keys; i++) {
 			if (node->children[i] != 0) {
 				uint64_t result = btree_search(disk, node->children[i], key);
-				if (result != -1) {
-					return result;
-				}
+				return result;
 			}
 		}
 		printf("Did not find key!\n");
