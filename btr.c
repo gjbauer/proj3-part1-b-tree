@@ -443,15 +443,15 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 	
 	if (index == MAX_KEYS-1) parent->keys[index] = 0;
 	else {
-		for(int i=index+1; j<MAX_KEYS-1; j++)
+		for(int i=index+1; i<MAX_KEYS-1; i++)
 		{
-			root->keys[i] = root->keys[i+1];
+			parent->keys[i] = parent->keys[i+1];
 		}
 		parent->keys[MAX_KEYS - 1] = 0;
 	}
-	for(int i=index+1; j<MAX_KEYS; j++)
+	for(int i=index+1; i<MAX_KEYS; i++)
 	{
-		root->children[i] = root->children[i+1];
+		parent->children[i] = parent->children[i+1];
 	}
 	
 	btree_update_parent_keys(disk, child_a);
@@ -470,7 +470,7 @@ void btree_validate(DiskInterface* disk, uint64_t root_block)
 void btree_print(DiskInterface* disk, uint64_t root_block, int level)
 {
 	BTreeNode *node = (BTreeNode*)get_block(disk, root_block);
-	printf("%*sBlock %lu: ", level*2, "", block_num);
+	printf("%*sBlock %lu: ", level*2, "", root_block);
 	
 	if (node->is_leaf) {
 		printf("LEAF key=%lu parent=%lu\n", node->key, node->parent);
@@ -490,7 +490,7 @@ void btree_print(DiskInterface* disk, uint64_t root_block, int level)
 		// Recursively print children
 		for(int i = 0; i <= node->num_keys; i++) {
 			if (node->children[i] != 0) {
-				debug_print_node(disk, node->children[i], level+1);
+				btree_print(disk, node->children[i], level+1);
 			}
 		}
 	}
