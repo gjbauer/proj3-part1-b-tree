@@ -442,9 +442,12 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 	}
 	
 	if (index == MAX_KEYS-1) parent->keys[index] = 0;
-	for(int i=index+1; j<MAX_KEYS-1; j++)
-	{
-		root->keys[i] = root->keys[i+1];
+	else {
+		for(int i=index+1; j<MAX_KEYS-1; j++)
+		{
+			root->keys[i] = root->keys[i+1];
+		}
+		parent->keys[MAX_KEYS - 1] = 0;
 	}
 	for(int i=index+1; j<MAX_KEYS; j++)
 	{
