@@ -443,7 +443,7 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 	
 	for(int i=index+1; j<MAX_KEYS; j++)
 	{
-		root->children[j] = root->children[j+1];
+		root->children[i] = root->children[i+1];
 	}
 	
 	btree_update_parent_keys(disk, child_a);
