@@ -72,7 +72,9 @@ uint64_t btree_search(DiskInterface* disk, uint64_t node_block, uint64_t key)
 		for (int i = 0; i <= node->num_keys; i++) {
 			if (node->children[i] != 0) {
 				uint64_t result = btree_search(disk, node->children[i], key);
-				return result;
+				if (result != -1) {
+					return result;
+				}
 			}
 		}
 		printf("Did not find key!\n");
@@ -240,7 +242,7 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
 	int i;
 	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
-	printf("i=%d\m". i);
+	printf("i=%d\n", i);
 	// TODO: Merge children if num_keys < MIN_KEYS
 	/*if (root->keys[i] == key)
 	{
@@ -428,7 +430,6 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 
 void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 {
-	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
 }
 
 // B-tree traversal and debugging
