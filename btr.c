@@ -229,11 +229,11 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	return 0;
 }
 
-int btree_borrow_left(DiskInterface* disk, uint64_t root_block)
+int btree_borrow_left(DiskInterface* disk, uint64_t root_block, int index)
 {
 }
 
-int btree_borrow_right(DiskInterface* disk, uint64_t root_block)
+int btree_borrow_right(DiskInterface* disk, uint64_t root_block, int index)
 {
 }
 
@@ -243,6 +243,8 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	int i;
 	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
 	printf("i=%d\n", i);
+	printf("root->keys[i]=%d\n", root->keys[i]);
+	printf("key=%d\n", key);
 	// TODO: Merge children if num_keys < MIN_KEYS
 	/*if (root->keys[i] == key)
 	{
