@@ -469,10 +469,7 @@ void btree_validate(DiskInterface* disk, uint64_t root_block)
 
 void btree_print(DiskInterface* disk, uint64_t root_block, int level)
 {
-}
-
-void debug_print_node(DiskInterface* disk, uint64_t block_num, int level) {
-	BTreeNode *node = (BTreeNode*)get_block(disk, block_num);
+	BTreeNode *node = (BTreeNode*)get_block(disk, root_block);
 	printf("%*sBlock %lu: ", level*2, "", block_num);
 	
 	if (node->is_leaf) {
@@ -521,7 +518,7 @@ int main()
 				btree_search(disk, root->block_number, key);
 				break;
 			case 3:
-				debug_print_node(disk, root->block_number, 1);
+				btree_print(disk, root->block_number, 1);
 				break;
 			default:
 				return 0;

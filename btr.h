@@ -35,6 +35,5 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index);
 void btree_traverse(DiskInterface* disk, uint64_t root_block, void (*callback)(uint64_t key, uint64_t value));
 void btree_validate(DiskInterface* disk, uint64_t root_block);
 void btree_print(DiskInterface* disk, uint64_t root_block, int level);
-void debug_print_node(DiskInterface* disk, uint64_t block_num, int level);
 #endif
 
