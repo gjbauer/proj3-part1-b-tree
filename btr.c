@@ -435,6 +435,7 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 	BTreeNode *child_a = (BTreeNode*)get_block(disk, parent->children[index]);
 	BTreeNode *child_b = (BTreeNode*)get_block(disk, parent->children[index+1]);
 	
+	// TODO: Should we delete keys first and then worry about borrow/merge, or should we borrow/merge first, then worry about deletion?
 	for (int i = MIN_KEYS + 1; i < MAX_KEYS; i++) {
 		child_a->keys[i] = child_b->keys[i - MIN_KEYS - 1];
 		child_a->num_keys++;
