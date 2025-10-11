@@ -430,6 +430,24 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 
 void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 {
+	BTreeNode *child_a = (BTreeNode*)get_block(disk, parent->children[index]);
+	BTreeNode *child_b = (BTreeNode*)get_block(disk, parent->children[index+1]);
+	
+	for (int i = MIN_KEYS + 1; i < MAX_KEYS; i++) {
+		child_a->keys[i] = child_b->keys[i - MIN_KEYS - 1];
+		child_a->num_keys++;
+	}
+	for (int i = MIN_KEYS + 1; i <= MAX_KEYS; i++) {
+		child_a->keys[i] = child_b->children[i - MIN_KEYS - 1];
+	}
+	
+	for(int i=index+1; j<MAX_KEYS; j++)
+	{
+		root->children[j] = root->children[j+1];
+	}
+	
+	btree_update_parent_keys(disk, child_a);
+	btree_node_free(disk, child_b);
 }
 
 // B-tree traversal and debugging
