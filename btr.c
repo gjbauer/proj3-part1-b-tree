@@ -315,8 +315,6 @@ void btree_split_root(DiskInterface* disk, BTreeNode* root)
 	BTreeNode *child_a = btree_node_create(disk, false);
 	BTreeNode *child_b = btree_node_create(disk, false);
 	
-	uint64_t promoted_key = root->keys[MIN_KEYS];
-	
 	for (int i = 0; i < MIN_KEYS; i++) {
 		child_a->keys[i] = root->keys[i];
 		child_a->children[i] = root->children[i];
@@ -349,7 +347,7 @@ void btree_split_root(DiskInterface* disk, BTreeNode* root)
 	
 	root->is_leaf = false;
 	root->num_keys = 1;
-	root->keys[0] = promoted_key;
+	root->keys[0] = btree_find_maximum(disk, child_a->block_number);
 	root->children[0] = child_a->block_number;
 	root->children[1] = child_b->block_number;
 	
@@ -399,11 +397,12 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 	if (node->num_keys < MAX_KEYS) {
 		for (int i = node->num_keys; i > index; i--) {
 			node->keys[i] = node->keys[i - 1];
-			node->children[i + 1] = node->children[i];
+		}
+		for (int i = node->num_keys+1; i > index; i--) {
+			node->children[i] = node->children[i-1];
 		}
 		
-		uint64_t max_key_of_left_child = btree_find_maximum(disk, child->block_number);
-		node->keys[index] = max_key_of_left_child;
+		node->keys[index] = btree_find_maximum(disk, child->block_number);
 		node->children[index + 1] = child_b->block_number;
 		node->num_keys++;
 		
@@ -426,10 +425,12 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 			if (current_parent->num_keys < MAX_KEYS) {
 				for (int i = current_parent->num_keys; i > new_index; i--) {
 					current_parent->keys[i] = current_parent->keys[i - 1];
-					current_parent->children[i + 1] = current_parent->children[i];
 				}
-				uint64_t max_key_of_left_child = btree_find_maximum(disk, child->block_number);
-				current_parent->keys[new_index] = max_key_of_left_child;
+				for (int i = current_parent->num_keys+1; i > new_index; i--) {
+					current_parent->children[i] = current_parent->children[i-1];
+				}
+				
+				current_parent->keys[new_index] = btree_find_maximum(disk, child->block_number);
 				current_parent->children[new_index + 1] = child_b->block_number;
 				current_parent->num_keys++;
 				
@@ -442,10 +443,12 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 			BTreeNode *new_root = node;
 			for (int i = new_root->num_keys; i > index; i--) {
 				new_root->keys[i] = new_root->keys[i - 1];
-				new_root->children[i + 1] = new_root->children[i];
 			}
-			uint64_t max_key_of_left_child = btree_find_maximum(disk, child->block_number);
-			new_root->keys[index] = max_key_of_left_child;
+			for (int i = new_root->num_keys + 1; i > index; i--) {
+				new_root->children[i] = new_root->children[i-1];
+			}
+			
+			new_root->keys[index] = btree_find_maximum(disk, child->block_number);
 			new_root->children[index + 1] = child_b->block_number;
 			new_root->num_keys++;
 			
