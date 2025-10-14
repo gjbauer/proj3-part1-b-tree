@@ -164,18 +164,20 @@ int btree_insertion_search(DiskInterface* disk, uint64_t root_block, uint64_t ke
 {
 	BTreeNode *node = (BTreeNode*)get_block(disk, root_block);
 	
+	if (node->children[0]==0) return node->block_number;
+	
 	while (!node->is_leaf) {
 		int i;
-		for(i = 0; i < node->num_keys && key > node->keys[i]; i++);
+		for(i = 0; i < node->num_keys && key > node->keys[i] && node->keys[i] !=0 ; i++);
+		
+		printf("i=%d\n", i);
 		
 		if (node->children[i] != 0) {
 			node = (BTreeNode*)get_block(disk, node->children[i]);
-		} else {
-			break;
 		}
 	}
 	
-	return node->block_number;
+	return node->parent;
 }
 
 void btree_update_parent_keys(DiskInterface* disk, BTreeNode* node)
@@ -210,21 +212,43 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	BTreeNode *node = btree_node_create(disk, true);
 	node->key = key;
 	
-	if (root->is_leaf && root->num_keys == 0) {
-		root->keys[0] = key;
-		root->children[0] = node->block_number;
-		node->parent = root->block_number;
-		root->num_keys++;
-		printf("Placing node with key %lu at position 0\n", key);
-		printf("Block number = %lu\n", node->block_number);
-		return 0;
-	}
+	int target_block = btree_insertion_search(disk, root_block, key);
+	BTreeNode *target = (BTreeNode*)get_block(disk, target_block);
 	
-	if (root->num_keys == MAX_KEYS) {
-		btree_split_root(disk, root);
+	if (target->num_keys == MAX_KEYS) {
+		if (key > target->keys[0] && target->children[0]==0)
+		{
+			for (int i=0; i<MAX_KEYS-1; i++)
+			{
+				target->keys[i] = target->keys[i+1];
+			}
+			target->keys[MAX_KEYS-1] = 0;
+			for (int i=0; i<MAX_KEYS; i++)
+			{
+				target->children[i] = target->children[i+1];
+			}
+			target->children[MAX_KEYS] = 0;
+			target->num_keys--;
+		}
+		else
+		{
+			if (target->parent!=0) {
+				BTreeNode *parent = (BTreeNode*)get_block(disk, target->parent);
+				int i;
+				for(i=0; i<MAX_KEYS && parent->keys[i] < btree_find_minimum(disk, target->block_number) && parent->keys[i]!=0; i++);
+				btree_split_node(disk, parent, i, target);
+				target_block = btree_insertion_search(disk, root_block, key);
+				target = (BTreeNode*)get_block(disk, target_block);
+			}
+			else
+			{
+				btree_split_root(disk, target);
+				target_block = btree_insertion_search(disk, root_block, key);
+				target = (BTreeNode*)get_block(disk, target_block);
+			}
+		}
 	}
-	
-	btree_insert_nonfull(disk, root, node);
+	btree_insert_nonfull(disk, target, node);
 	
 	return 0;
 }
