@@ -143,6 +143,7 @@ int btree_insert_nonfull(DiskInterface* disk, BTreeNode *root, BTreeNode *node)
 		int i;
 		for(i=0; i<root->num_keys && root->keys[i] < node->key; i++);
 		
+		// Find the correct child position based on the key value
 		int child_pos = 0;
 		for(int j=0; j<=root->num_keys; j++) {
 			if(root->children[j] != 0) {
@@ -379,7 +380,7 @@ void btree_split_root(DiskInterface* disk, BTreeNode* root)
 	
 	root->is_leaf = false;
 	root->num_keys = 1;
-	root->keys[0] = child_a->keys[MIN_KEYS - 1];  // Use max key from left child
+	root->keys[0] = btree_find_maximum(disk, child_a->block_number);
 	root->children[0] = child_a->block_number;
 	root->children[1] = child_b->block_number;
 	
@@ -433,7 +434,7 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 			node->children[i] = node->children[i-1];
 		}
 		
-		node->keys[index] = child->keys[MIN_KEYS - 1];
+		node->keys[index] = btree_find_maximum(disk, child->block_number);
 		node->children[index + 1] = child_b->block_number;
 		node->num_keys++;
 	} else {
@@ -459,7 +460,7 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 					current_parent->children[i] = current_parent->children[i-1];
 				}
 				
-				current_parent->keys[new_index] = child->keys[MIN_KEYS - 1];
+				current_parent->keys[new_index] = btree_find_maximum(disk, child->block_number);
 				current_parent->children[new_index + 1] = child_b->block_number;
 				current_parent->num_keys++;
 			}
@@ -474,7 +475,7 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 				new_root->children[i] = new_root->children[i-1];
 			}
 			
-			new_root->keys[index] = child->keys[MIN_KEYS - 1];
+			new_root->keys[index] = btree_find_maximum(disk, child->block_number);
 			new_root->children[index + 1] = child_b->block_number;
 			new_root->num_keys++;
 		}
@@ -506,7 +507,7 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 		parent->children[i] = parent->children[i+1];
 	}
 	
-	btree_update_parent_keys(disk, child_a);
+	//btree_update_parent_keys(disk, child_a);
 	btree_node_free(disk, child_b);
 }
 
