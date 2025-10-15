@@ -15,6 +15,8 @@ typedef struct BTreeNode {
     uint64_t keys[MAX_KEYS];		// Array of keys (could be inode numbers)
     uint64_t children[MAX_KEYS + 1];	// Array of child block numbers
     uint64_t parent;			// Parent node block number
+    uint64_t left_sibling;		// Block number of left sibling (if one exists)
+    uint64_t right_sibling;		// Block number of right sibling (if one exists)
 } BTreeNode;
 
 // ==================== B-TREE OPERATIONS ====================
@@ -26,6 +28,7 @@ int btree_node_read(DiskInterface* disk, uint64_t block_num, BTreeNode* node);
 int btree_node_write(DiskInterface* disk, BTreeNode* node);
 uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key);
 int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key);
+int btree_insert_nonfull_recursive(DiskInterface* disk, uint64_t node_block, uint64_t key);
 int btree_delete(DiskInterface* disk, uint64_t root_block, uint64_t key);
 void btree_split_root(DiskInterface* disk, BTreeNode* root);
 void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode* child);
