@@ -7,8 +7,8 @@ use Test::More;
 
 # Configuration
 my $executable = "./btree";
-my $test_count = 10;        # Reduced for faster testing
-my $search_count = 20;      # Reduced for faster testing
+my $test_count = 40;        # Reduced for faster testing
+my $search_count = 80;      # Reduced for faster testing
 
 # Check if executable exists
 unless (-e $executable) {
