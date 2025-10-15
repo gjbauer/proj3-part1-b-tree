@@ -213,7 +213,21 @@ int btree_insertion_search(DiskInterface* disk, uint64_t root_block, uint64_t ke
 		}
 		
 		if (node->children[child_index] != 0) {
-			node = (BTreeNode*)get_block(disk, node->children[child_index]);
+			BTreeNode *next_node = (BTreeNode*)get_block(disk, node->children[child_index]);
+			bool next_has_leaf_child = false;
+			for (int i = 0; i <= next_node->num_keys; i++) {
+				if (next_node->children[i] != 0) {
+					BTreeNode *grandchild = (BTreeNode*)get_block(disk, next_node->children[i]);
+					if (grandchild->is_leaf) {
+						next_has_leaf_child = true;
+						break;
+					}
+				}
+			}
+			if (next_has_leaf_child) {
+				return next_node->block_number;
+			}
+			node = next_node;
 		} else {
 			return node->block_number;
 		}
@@ -222,31 +236,15 @@ int btree_insertion_search(DiskInterface* disk, uint64_t root_block, uint64_t ke
 
 void btree_update_parent_keys(DiskInterface* disk, BTreeNode* node)
 {
-	BTreeNode *current = node;
+	if (node->parent == 0) return;
 	
-	while (current->parent != 0) {
-		BTreeNode *parent = (BTreeNode*)get_block(disk, current->parent);
-		
-		int child_index = -1;
-		for (int i = 0; i <= parent->num_keys; i++) {
-			if (parent->children[i] == current->block_number) {
-				child_index = i;
-				break;
-			}
+	BTreeNode *parent = (BTreeNode*)get_block(disk, node->parent);
+	
+	// Update all keys in the parent based on the maximum values of each child
+	for (int i = 0; i < parent->num_keys; i++) {
+		if (parent->children[i] != 0) {
+			parent->keys[i] = btree_find_maximum(disk, parent->children[i]);
 		}
-		
-		if (child_index == -1) break;
-		
-		// Update the key that separates this child from the next
-		if (child_index > 0) {
-			uint64_t max_key = btree_find_maximum(disk, current->block_number);
-			// Only update if the key has actually changed
-			if (parent->keys[child_index - 1] != max_key) {
-				parent->keys[child_index - 1] = max_key;
-			}
-		}
-		
-		current = parent;
 	}
 }
 
@@ -281,6 +279,8 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 		}
 	}
 	else btree_insert_nonfull(disk, target, node);
+
+	btree_update_parent_keys(disk, node);
 	
 	return 0;
 }
@@ -386,9 +386,9 @@ void btree_split_root(DiskInterface* disk, BTreeNode* root)
 	
 	root->is_leaf = false;
 	root->num_keys = 1;
-	root->keys[0] = btree_find_maximum(disk, child_a->block_number);
 	root->children[0] = child_a->block_number;
 	root->children[1] = child_b->block_number;
+	root->keys[0] = btree_find_maximum(disk, child_a->block_number);
 	
 	// Clear remaining slots
 	for (int i = 1; i < MAX_KEYS; i++) {
@@ -400,6 +400,7 @@ void btree_split_root(DiskInterface* disk, BTreeNode* root)
 	
 	child_a->parent = root->block_number;
 	child_b->parent = root->block_number;
+	root->keys[0] = btree_find_maximum(disk, child_a->block_number);
 }
 
 void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode* child)
@@ -431,13 +432,13 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 		}
 		
 		node->children[index + 1] = child_b->block_number;
-		
-		for (int i = 0; i < node->num_keys + 1; i++) {
+		child_b->parent = node->block_number;
+		node->num_keys++;
+		for (int i = 0; i < node->num_keys; i++) {
 			if (node->children[i] != 0) {
 				node->keys[i] = btree_find_maximum(disk, node->children[i]);
 			}
 		}
-		node->num_keys++;
 	} else {
 		if (node->parent != 0) {
 			BTreeNode *grandparent = (BTreeNode*)get_block(disk, node->parent);
@@ -463,12 +464,12 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 			
 			current_parent->children[new_index + 1] = child_b->block_number;
 			
-			for (int i = 0; i < current_parent->num_keys + 1; i++) {
+			current_parent->num_keys++;
+			for (int i = 0; i < current_parent->num_keys; i++) {
 				if (current_parent->children[i] != 0) {
 					current_parent->keys[i] = btree_find_maximum(disk, current_parent->children[i]);
 				}
 			}
-			current_parent->num_keys++;
 		}
 	}
 }
