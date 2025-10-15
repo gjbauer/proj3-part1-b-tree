@@ -181,7 +181,7 @@ int btree_insertion_search(DiskInterface* disk, uint64_t root_block, uint64_t ke
 	
 	if (node->children[0] == 0) {
 		return node->block_number;
-	} else if (node->is_leaf) return node->parent;
+	}
 	
 	while (true) {
 		bool has_leaf_child = false;
@@ -199,37 +199,11 @@ int btree_insertion_search(DiskInterface* disk, uint64_t root_block, uint64_t ke
 			return node->block_number;
 		}
 		
-		int child_index = 0;
-		for (int i = 0; i < node->num_keys; i++) {
-			if (node->keys[i] != 0 && key > node->keys[i]) {
-				child_index = i + 1;
-			} else {
+		for (int i = 0; i <= node->num_keys; i++) {
+			if (node->children[i] != 0) {
+				node = (BTreeNode*)get_block(disk, node->children[i]);
 				break;
 			}
-		}
-		
-		if (child_index > node->num_keys) {
-			child_index = node->num_keys;
-		}
-		
-		if (node->children[child_index] != 0) {
-			BTreeNode *next_node = (BTreeNode*)get_block(disk, node->children[child_index]);
-			bool next_has_leaf_child = false;
-			for (int i = 0; i <= next_node->num_keys; i++) {
-				if (next_node->children[i] != 0) {
-					BTreeNode *grandchild = (BTreeNode*)get_block(disk, next_node->children[i]);
-					if (grandchild->is_leaf) {
-						next_has_leaf_child = true;
-						break;
-					}
-				}
-			}
-			if (next_has_leaf_child) {
-				return next_node->block_number;
-			}
-			node = next_node;
-		} else {
-			return node->block_number;
 		}
 	}
 }
