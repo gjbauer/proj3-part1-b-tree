@@ -1,6 +1,6 @@
 #ifndef HASH_H
 #define HASH_H
 
-unsigned int hash(const unsigned char *str);
+uint64_t path_hash(const char *path);
 
 #endif

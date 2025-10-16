@@ -1,20 +1,15 @@
 #include "hash.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <stdint.h>
 
-unsigned int hash(const unsigned char *str)
-{
-    unsigned long hash = 137;
-    int c;
-
-    while ( (c = *str++) )
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-
+// Simple FNV-1a implementation for filesystem
+uint64_t path_hash(const char *path) {
+    uint64_t hash = 0xcbf29ce484222325ULL; // FNV offset basis
+    
+    for (; *path; ++path) {
+        hash ^= (uint64_t)(unsigned char)(*path);
+        hash *= 0x100000001b3ULL; // FNV prime
+    }
+    
     return hash;
 }
-
-/*int main() {
-	printf("%ld\n", hash("hello") % 512);
-}*/
 
