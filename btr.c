@@ -255,7 +255,6 @@ void btree_update_parent_keys(DiskInterface* disk, BTreeNode* node)
 
 int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
-	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
 	BTreeNode *node = btree_node_create(disk, true);
 	node->key = key;
 	
@@ -290,16 +289,52 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	return 0;
 }
 
-int btree_borrow_left(DiskInterface* disk, uint64_t root_block, int index)
+int btree_borrow_left(DiskInterface* disk, BTreeNode *node)
 {
-	// TODO: Implement borrowing from left sibling
-	return -1;
+	int rv = -1;
+	if (node->left_sibling==0) return rv;
+	else {
+		BTreeNode *left_sibling = (BTreeNode*)get_block(disk, node->left_sibling);
+		
+		if (left_sibling->num_keys==MIN_KEYS) return rv;
+		else {
+			for (int i = left_sibling->num_keys; i >= 0; i--) {
+				if (left_sibling->children[i] != 0) {
+					if (i < left_sibling->num_keys) left_sibling->keys[i]=0;
+					rv = left_sibling->children[i];
+					left_sibling->children[i] = 0;
+					left_sibling->num_keys--;
+					break;
+				}
+			}
+		}
+	}
+	printf("rv=%d\n", rv);
+	return rv;
 }
 
-int btree_borrow_right(DiskInterface* disk, uint64_t root_block, int index)
+int btree_borrow_right(DiskInterface* disk, BTreeNode *node)
 {
-	// TODO: Implement borrowing from right sibling
-	return -1;
+	int rv = -1;
+	if (node->right_sibling==0) return rv;
+	else {
+		BTreeNode *right_sibling = (BTreeNode*)get_block(disk, node->right_sibling);
+		
+		if (right_sibling->num_keys==MIN_KEYS) return rv;
+		else {
+			rv = right_sibling->children[0];
+			for(int i = 0; i < MAX_KEYS-1; i++) {
+				right_sibling->keys[i] = right_sibling->keys[i+1];
+			}
+			for(int i = 0; i < MAX_KEYS; i++) {
+				right_sibling->children[i] = right_sibling->children[i+1];
+			}
+			right_sibling->keys[MAX_KEYS-1] = 0;
+			right_sibling->children[MAX_KEYS] = 0;
+			right_sibling->num_keys--;
+		}
+	}
+	return rv;
 }
 
 void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
@@ -307,31 +342,47 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
 	int i;
 	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
-	printf("i=%d\n", i);
-	printf("root->keys[i]=%lu\n", root->keys[i]);
-	printf("key=%lu\n", key);
-	// TODO: Merge children if num_keys < MIN_KEYS
-	/*if (root->keys[i] == key)
+	BTreeNode *node = (BTreeNode*)get_block(disk, root->children[i]);
+	int rv;
+	if (root->num_keys==MIN_KEYS)
 	{
-		printf("Removing key %ld from block %ld\n", key, root_block);
-		for(int j=i; j<root->num_keys-1; j++)
-		{
-			root->keys[j] = root->keys[j+1];
-			root->children[j+1] = root->children[j+2];
+		BTreeNode *borrowed;
+		rv = btree_borrow_left(disk, root);
+		if (rv!=-1) {
+			borrowed = (BTreeNode*)get_block(disk, rv);
+			btree_insert_nonfull(disk, root, borrowed);
 		}
-		root->keys[root->num_keys-1] = 0;
-		root->children[root->num_keys] = 0;
-		root->num_keys--;
-		if (root->num_keys==0)
-		{
-			root->keys[0] = btree_find_minimum(disk, root_block);
-			root->num_keys++;
+		else {
+			rv = btree_borrow_right(disk, root);
+			if (rv!=-1) {
+				borrowed = (BTreeNode*)get_block(disk, rv);
+				btree_insert_nonfull(disk, root, borrowed);
+			}
 		}
-		if (root->parent != 0)
-		{
-			btree_remove_key(disk, root->parent, key);
-		}
-	}*/
+	}
+	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
+	printf("Removing key %ld from block %ld\n", key, root_block);
+	for(int j=i; j<root->num_keys-1; j++)
+	{
+		root->keys[j] = root->keys[j+1];
+	}
+	for(int j=i; j<=root->num_keys; j++)
+	{
+		root->children[j] = root->children[j+1];
+	}
+	root->keys[root->num_keys-1] = 0;
+	root->children[root->num_keys] = 0;
+	root->num_keys--;
+	if (rv==-1) btree_merge_children(disk, root, i);
+	if (root->num_keys==0)
+	{
+		root->keys[0] = btree_find_maximum(disk, root_block);
+		root->num_keys++;
+	}
+	if (root->parent != 0)
+	{
+		btree_update_parent_keys(disk, node);
+	}
 	
 	return;
 }
@@ -344,8 +395,8 @@ int btree_delete(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	if (rv!=-1)
 	{
 		node = (BTreeNode*)get_block(disk, rv);
-		btree_node_free(disk, node);
 		btree_remove_key(disk, node->parent, key);
+		btree_node_free(disk, node);
 	}
 	
 	return rv;
@@ -355,6 +406,8 @@ void btree_split_root(DiskInterface* disk, BTreeNode* root)
 {
 	BTreeNode *child_a = btree_node_create(disk, false);
 	BTreeNode *child_b = btree_node_create(disk, false);
+	child_a->right_sibling = child_b->block_number;
+	child_b->left_sibling = child_a->block_number;
 	
 	for (int i = 0; i < MIN_KEYS; i++) {
 		child_a->keys[i] = root->keys[i];
@@ -411,6 +464,8 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 {
 	BTreeNode *child_b = btree_node_create(disk, false);
 	child_b->parent = node->block_number;
+	child->right_sibling = child_b->block_number;
+	child_b->left_sibling = child->block_number;
 	
 	for (int i = MIN_KEYS + 1; i < child->num_keys; i++) {
 		child_b->keys[i - MIN_KEYS - 1] = child->keys[i];
@@ -481,10 +536,12 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 
 void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 {
+	if (index == MAX_KEYS) return btree_merge_children(disk, parent, index-1);
+	else if (parent->children[index] == 0 || parent->children[index+1]==0) return;
 	BTreeNode *child_a = (BTreeNode*)get_block(disk, parent->children[index]);
 	BTreeNode *child_b = (BTreeNode*)get_block(disk, parent->children[index+1]);
+	child_a->right_sibling = child_b->right_sibling;
 	
-	// TODO: Should we delete keys first and then worry about borrow/merge, or should we borrow/merge first, then worry about deletion?
 	for (int i = MIN_KEYS + 1; i < MAX_KEYS; i++) {
 		child_a->keys[i] = child_b->keys[i - MIN_KEYS - 1];
 		child_a->num_keys++;
@@ -553,7 +610,7 @@ int main()
 	BTreeNode *root = btree_node_create(disk, false);
 	
 	while (true) {
-		printf("Select 1 to insert a key, and 2 to search for a key, and 3 for debug print: ");
+		printf("Select 1 to insert a key, and 2 to search for a key, and 3 for debug print, and 4 to delete a key: ");
 		int choice, key;
 		scanf("%d", &choice);
 		switch (choice) {
@@ -569,6 +626,11 @@ int main()
 				break;
 			case 3:
 				btree_print(disk, root->block_number, 1);
+				break;
+			case 4:
+				printf("Key to delete: ");
+				scanf("%d", &key);
+				btree_delete(disk, root->block_number, key);
 				break;
 			default:
 				return 0;

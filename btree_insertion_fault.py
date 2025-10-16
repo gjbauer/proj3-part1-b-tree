@@ -46,7 +46,7 @@ def test_btree_with_pexpect(num_keys):
         
         # Exit the program
         print("\nExiting B-tree program...")
-        child.sendline('4')
+        child.sendline('5')
         child.expect(pexpect.EOF)
         
     except pexpect.ExceptionPexpect as e:
