@@ -462,13 +462,16 @@ void btree_promote_root(DiskInterface* disk, BTreeNode* root)
 {
 	int page = root->block_number;
 	
-	BTreeNode *child = (BTreeNode*)get_block(disk, root->children[0]);
+	BTreeNode *first_child = (BTreeNode*)get_block(disk, root->children[0]);
 	
-	memcpy(root, child, sizeof(BTreeNode));
+	memcpy(root, first_child, sizeof(BTreeNode));
 	
 	root->block_number = page;
 	root->parent = 0;
 	
+	btree_node_free(disk, first_child);
+	
+	BTreeNode *child;
 	for (int i = 0; i <= root->num_keys; i++) {
 		if (root->children[i] != 0) {
 			child = (BTreeNode*)get_block(disk, root->children[i]);
