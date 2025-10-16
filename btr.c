@@ -560,17 +560,22 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 	}
 	
 	btree_node_free(disk, child_b);
+	
+	parent->num_keys--;
+	
+	if (parent->num_keys < MIN_KEYS) {
+		if (parent->parent == 0) {
+			// TODO: Promote root
+		} else {
+			BTreeNode* grandparent = (BTreeNode*)get_block(disk, parent->parent);
+			int i;
+			for(i=0; i<MAX_KEYS && grandparent->keys[i] < btree_find_maximum(disk, parent) && grandparent->keys[i]!=0; i++);
+			btree_merge_children(disk, grandparent, i);
+		}
+	}
 }
 
-// B-tree traversal and debugging
-void btree_traverse(DiskInterface* disk, uint64_t root_block, void (*callback)(uint64_t key, uint64_t value))
-{
-}
-
-void btree_validate(DiskInterface* disk, uint64_t root_block)
-{
-}
-
+// B-tree debugging
 void btree_print(DiskInterface* disk, uint64_t root_block, int level)
 {
 	BTreeNode *node = (BTreeNode*)get_block(disk, root_block);
