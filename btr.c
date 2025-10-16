@@ -271,7 +271,7 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 				BTreeNode *parent = (BTreeNode*)get_block(disk, target->parent);
 				int i;
 				for(i=0; i<MAX_KEYS && parent->keys[i] < btree_find_maximum(disk, target->block_number) && parent->keys[i]!=0; i++);
-				btree_split_node(disk, parent, i, target);
+				btree_split_child(disk, parent, i, target);
 				target_block = btree_insertion_search(disk, root_block, key);
 				target = (BTreeNode*)get_block(disk, target_block);
 			} else {
@@ -458,7 +458,26 @@ void btree_split_root(DiskInterface* disk, BTreeNode* root)
 	root->keys[0] = btree_find_maximum(disk, child_a->block_number);
 }
 
-void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode* child)
+void btree_promote_root(DiskInterface* disk, BTreeNode* root)
+{
+	int page = root->block_number;
+	
+	BTreeNode *child = (BTreeNode*)get_block(disk, root->children[0]);
+	
+	memcpy(root, child, sizeof(BTreeNode));
+	
+	root->block_number = page;
+	root->parent = 0;
+	
+	for (int i = 0; i <= root->num_keys; i++) {
+		if (root->children[i] != 0) {
+			child = (BTreeNode*)get_block(disk, root->children[i]);
+			child->parent = root->block_number;
+		}
+	}
+}
+
+void btree_split_child(DiskInterface* disk, BTreeNode* node, int index, BTreeNode* child)
 {
 	BTreeNode *child_b = btree_node_create(disk, false);
 	child_b->parent = node->block_number;
@@ -504,7 +523,7 @@ void btree_split_node(DiskInterface* disk, BTreeNode* node, int index, BTreeNode
 			for (parent_index = 0; parent_index <= grandparent->num_keys; parent_index++) {
 				if (grandparent->children[parent_index] == node->block_number) break;
 			}
-			btree_split_node(disk, grandparent, parent_index, node);
+			btree_split_child(disk, grandparent, parent_index, node);
 		} else {
 			btree_split_root(disk, node);
 		}
@@ -568,6 +587,7 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 			// TODO: Promote root
 			if (parent->children[1]==0) {
 				printf("Promoting root!\n");
+				btree_promote_root(disk, root);
 			}
 		} else {
 			int rv = btree_borrow_left(disk, root);
