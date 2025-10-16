@@ -344,7 +344,7 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	BTreeNode *node = (BTreeNode*)get_block(disk, root->children[i]);
 	BTreeNode *borrowed;
 	int rv;
-	if (root->num_keys==MIN_KEYS)
+	if (root->num_keys==MIN_KEYS && root->parent!=0)
 	{
 		rv = btree_borrow_left(disk, root);
 		if (rv==-1) {
