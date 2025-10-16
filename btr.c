@@ -309,7 +309,6 @@ int btree_borrow_left(DiskInterface* disk, BTreeNode *node)
 			}
 		}
 	}
-	printf("rv=%d\n", rv);
 	return rv;
 }
 
@@ -323,10 +322,10 @@ int btree_borrow_right(DiskInterface* disk, BTreeNode *node)
 		if (right_sibling->num_keys==MIN_KEYS) return rv;
 		else {
 			rv = right_sibling->children[0];
-			for(int i = 0; i < MAX_KEYS-1; i++) {
+			for(int i = 0; i < MAX_KEYS; i++) {
 				right_sibling->keys[i] = right_sibling->keys[i+1];
 			}
-			for(int i = 0; i < MAX_KEYS; i++) {
+			for(int i = 0; i <= MAX_KEYS; i++) {
 				right_sibling->children[i] = right_sibling->children[i+1];
 			}
 			right_sibling->keys[MAX_KEYS-1] = 0;
@@ -358,6 +357,12 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 				borrowed = (BTreeNode*)get_block(disk, rv);
 				btree_insert_nonfull(disk, root, borrowed);
 			}
+			else {
+				BTreeNode *grandparent = (BTreeNode*)get_block(disk, root->parent);
+				int j;
+				for(j=0; j<MAX_KEYS && grandparent->keys[j] < key && grandparent->keys[j]!=0; j++);
+				btree_merge_children(disk, grandparent, j);
+			}
 		}
 	}
 	for(i=0; i<MAX_KEYS && root->keys[i] < key && root->keys[i]!=0; i++);
@@ -373,16 +378,12 @@ void btree_remove_key(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	root->keys[root->num_keys-1] = 0;
 	root->children[root->num_keys] = 0;
 	root->num_keys--;
-	if (rv==-1) btree_merge_children(disk, root, i);
 	if (root->num_keys==0)
 	{
 		root->keys[0] = btree_find_maximum(disk, root_block);
 		root->num_keys++;
 	}
-	if (root->parent != 0)
-	{
-		btree_update_parent_keys(disk, node);
-	}
+	btree_update_parent_keys(disk, node);
 	
 	return;
 }
@@ -561,7 +562,6 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 		parent->children[i] = parent->children[i+1];
 	}
 	
-	//btree_update_parent_keys(disk, child_a);
 	btree_node_free(disk, child_b);
 }
 
