@@ -122,7 +122,7 @@
     \end{tikzpicture}
     
     \vspace{2cm}
-    {\Large Database Systems Implementation}\\
+    {\Large Filesystem Implementation}\\
     \vspace{0.5cm}
     {\normalsize Analysis of Disk-Based C Implementation}\\
     \vspace{2cm}
@@ -135,7 +135,7 @@
 
 \section{Introduction}
 
-B-Trees are self-balancing tree data structures that maintain sorted data and allow searches, sequential access, insertions, and deletions in logarithmic time. This document analyzes a specific C implementation of a B-Tree designed for database storage systems with disk-based persistence.
+B-Trees are self-balancing tree data structures that maintain sorted data and allow searches, sequential access, insertions, and deletions in logarithmic time. This document analyzes a specific C implementation of a B-Tree designed for filesystem storage systems with disk-based persistence.
 
 The implementation features several key characteristics:
 \begin{itemize}
@@ -324,7 +324,7 @@ Deletion is more complex, involving borrowing from siblings or merging nodes whe
 
 \section{Disk Interface Integration}
 
-The B-Tree implementation integrates with a disk interface for persistent storage:
+The B-Tree implementation integrates with a disk interface for filesystem storage:
 
 \begin{lstlisting}
 typedef struct DiskInterface {
@@ -404,7 +404,7 @@ When internal nodes merge:
 
 \section{Conclusion}
 
-This B-Tree implementation provides an efficient, disk-based data structure suitable for database systems. The key design decisions include:
+This B-Tree implementation provides an efficient, disk-based data structure suitable for filesystem implementations. The key design decisions include:
 
 \begin{itemize}
     \item Sibling relationships maintained only for internal nodes
