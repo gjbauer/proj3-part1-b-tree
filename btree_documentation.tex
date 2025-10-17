@@ -284,7 +284,7 @@ Insertion maintains the B-Tree properties through node splitting when nodes beco
 \textbf{Key Points:}
 \begin{itemize}
     \item When a node splits, sibling pointers are established between the two new internal nodes
-    \item The median key is promoted to the parent
+    \item The maximum value of the left subtree is propagated upwards to the parent
     \item Leaf nodes do not maintain sibling relationships
     \item Root splitting creates a new root level
 \end{itemize}
@@ -377,6 +377,7 @@ When an internal node splits:
 \begin{enumerate}
     \item Create two new nodes from the original
     \item Set \texttt{left\_sibling} and \texttt{right\_sibling} between the new nodes
+    \item Propagate the maximum value of the left subtree upwards to the parent
     \item Update any existing sibling relationships
     \item Leaf nodes created during splits maintain \texttt{left\_sibling = right\_sibling = 0}
 \end{enumerate}
