@@ -48,63 +48,6 @@ void btree_print(DiskInterface* disk, uint64_t root_block, int level);
 
 ```
 
-BTreeNode* btree_node_create(DiskInterface* disk, bool is_leaf)
-{
-	// Allocate a new disk block for this node
-	int page = alloc_page(disk);
-	
-	// Get pointer to the allocated block
-	BTreeNode *node = (BTreeNode*)get_block(disk, page);
-	
-	// Initialize node metadata
-	node->block_number = page;
-	node->is_leaf = is_leaf;
-	node->key = 0;
-	node->num_keys = 0;
-	node->value = 0;
-	node->parent = 0;
-	node->left_sibling = 0;
-	node->right_sibling = 0;
-	
-	// Initialize all keys and children to 0
-	for(int i=0; i<MAX_KEYS; i++) node->keys[i]=0;
-	for(int i=0; i<=MAX_KEYS; i++) node->children[i]=0;
-	
-	return node;
-}
-
-void btree_node_free(DiskInterface* disk, BTreeNode* node)
-{
-	free_page(disk, node->block_number);
-}
-
-
-int btree_node_read(DiskInterface* disk, uint64_t block_num, BTreeNode* node)
-{
-	int rv;
-	BTreeNode *disk_node = (BTreeNode*)get_block(disk, block_num);
-	
-	// Copy node data from disk to memory structure
-	void *ptr = memcpy((char*)node, (char*)disk_node, sizeof(BTreeNode));
-	
-	rv = (ptr==NULL) ? -1 : 0;
-	
-	return rv;
-}
-
-int btree_node_write(DiskInterface* disk, BTreeNode* node)
-{
-	int rv;
-	BTreeNode *mem_node = (BTreeNode*)get_block(disk, node->block_number);
-	
-	// Copy node data from memory to disk
-	void *ptr = memcpy((char*)mem_node, (char*)node, sizeof(BTreeNode));
-	
-	rv = (ptr==NULL) ? -1 : 0;
-	
-	return rv;
-}
-
 uint64_t btree_search(DiskInterface* disk, uint64_t node_block, uint64_t key)
 {
 	BTreeNode *node = (BTreeNode*)get_block(disk, node_block);
