@@ -103,6 +103,8 @@ int btree_delete(DiskInterface* disk, uint64_t root_block, uint64_t key);
  */
 void btree_split_root(DiskInterface* disk, BTreeNode* root);
 
+void btree_promote_root(DiskInterface* disk, BTreeNode* root);
+
 /**
  * Split a full child node
  * @param disk Pointer to DiskInterface
