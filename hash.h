@@ -1,5 +1,6 @@
 #ifndef HASH_H
 #define HASH_H
+#include <stdint.h>
 
 /**
  * Hash function utilities for filesystem operations

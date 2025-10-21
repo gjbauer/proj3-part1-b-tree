@@ -663,16 +663,16 @@ void btree_merge_children(DiskInterface* disk, BTreeNode* parent, int index)
 			// TODO: Promote root
 			if (parent->children[1]==0) {
 				printf("Promoting root!\n");
-				btree_promote_root(disk, root);
+				btree_promote_root(disk, parent);
 			}
 		} else {
-			int rv = btree_borrow_left(disk, root);
+			int rv = btree_borrow_left(disk, parent);
 			if (rv==-1) {
-				rv = btree_borrow_right(disk, root);
+				rv = btree_borrow_right(disk, parent);
 				if (rv==-1) {
-					BTreeNode *grandparent = (BTreeNode*)get_block(disk, root->parent);
+					BTreeNode *grandparent = (BTreeNode*)get_block(disk, parent->parent);
 					int j;
-					for(j=0; j<MAX_KEYS && grandparent->keys[j] < btree_find_maximum(disk, parent) && grandparent->keys[j]!=0; j++);
+					for(j=0; j<MAX_KEYS && grandparent->keys[j] < btree_find_maximum(disk, parent->block_number) && grandparent->keys[j]!=0; j++);
 					btree_merge_children(disk, grandparent, j);
 				}
 			}

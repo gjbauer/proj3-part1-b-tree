@@ -1,5 +1,4 @@
 #include "hash.h"
-#include <stdint.h>
 
 /**
  * FNV-1a hash function implementation for filesystem path hashing
