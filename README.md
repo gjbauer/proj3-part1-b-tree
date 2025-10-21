@@ -109,62 +109,6 @@ int btree_insert_nonfull(DiskInterface* disk, BTreeNode *root, BTreeNode *node)
 	return 0;
 }
 
-int btree_insertion_search(DiskInterface* disk, uint64_t root_block, uint64_t key)
-{
-	BTreeNode *root = (BTreeNode*)get_block(disk, root_block);
-	
-	if (root->children[0] == 0) {
-		return root->block_number;
-	}
-	
-	if (btree_find_depth(disk, root_block)-1 <= 0) {
-		return root->block_number;
-	}
-	
-	BTreeNode *node = root;
-	int current_depth = 0;
-	while (current_depth < btree_find_depth(disk, root_block)-1) {
-		int child_index = 0;
-		
-		for (int i = 0; i < node->num_keys; i++) {
-			if (node->children[i] != 0) {
-				uint64_t child_max = btree_find_maximum(disk, node->children[i]);
-				if (key <= child_max) {
-					child_index = i;
-					break;
-				}
-				child_index = i + 1;
-			}
-		}
-		
-		if (child_index > node->num_keys) {
-			child_index = node->num_keys;
-		}
-		
-		bool descended = false;
-		if (node->children[child_index] != 0) {
-			node = (BTreeNode*)get_block(disk, node->children[child_index]);
-			current_depth++;
-			descended = true;
-		} else {
-			for (int i = node->num_keys; i >= 0; i--) {
-				if (node->children[i] != 0) {
-					node = (BTreeNode*)get_block(disk, node->children[i]);
-					current_depth++;
-					descended = true;
-					break;
-				}
-			}
-		}
-		
-		if (!descended) {
-			break;
-		}
-	}
-	
-	return node->block_number;
-}
-
 void btree_update_parent_keys(DiskInterface* disk, BTreeNode* node)
 {
 	if (node->parent == 0) return;  // No parent to update
@@ -242,16 +186,33 @@ btree_insert:
 	node key = key
 	
 	target block = root block
+	
+	if target block number of keys == MAX_KEYS:
+		if target block keys[MAX_KEYS-1] < keys & target block child[MAX_KEYS] == 0:
+			target block child[MAX_KEYS] = node block number
+			node parent = target block block number
+		else:
+			if target parent !=0:
+				parent = get_block(DiskInterface, target block parent);
+				i = 0
+				for i in range MAX_KEYS:
+					if parent keys[i] < btree_find_maximum(DiskInterface, target block block number) or parent keys[i] == 0:
+						break
+				btree_split_child(DiskInterface, parent, i, target block)
+				target block number = btree_insertion_search(DiskInterface, root block block number, key)
+				target block = get_block(DiskInterface, target block number)
+			else:
 
-	btree_insertion_search:
-	if root child[0] != 0 & btree_find_depth(DiskInterface, root block)-1 > 0:
+btree_insertion_search:
+	
+	if target child[0] != 0 & btree_find_depth(DiskInterface, target block)-1 > 0:
 		current depth = 0
 		
 		while current depth < btree_find_depth(DiskInterface, root block)-1:
 			child index = 0
 			
 			for i in range of the number of keys:
-				child max = btree_find_maximum(DiskInterface, target block child[i[)
+				child max = btree_find_maximum(DiskInterface, target block child[i])
 				if key <= child max:
 					child index = i
 					break
@@ -275,22 +236,7 @@ btree_insert:
 			
 			if !descended:
 				break
-	
-	if target block number of keys == MAX_KEYS:
-		if target block keys[MAX_KEYS-1] < keys & target block child[MAX_KEYS] == 0:
-			target block child[MAX_KEYS] = node block number
-			node parent = target block block number
-		else:
-			if target parent !=0:
-				parent = get_block(DiskInterface, target block parent);
-				i = 0
-				for i in range MAX_KEYS:
-					if parent keys[i] < btree_find_maximum(DiskInterface, target block block number) or parent keys[i] == 0:
-						break
-				btree_split_child(DiskInterface, parent, i, target block)
-				goto btree_insertion_search
-			else:
-
+	return target block number
 
 int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
