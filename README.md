@@ -1,10 +1,10 @@
-# B-Tree Design and Algorithm Implementation
+## B-Tree Design and Algorithm Implementation
 
-## Introduction
+### Introduction
 
 B-Trees were first introduced in 1970 by Rudolf Bayer and Edward M. McCreight. They provide a data structure capable of time-efficient operations with a time complexity of O(log n) for insertion, search, and deletion, and O(n) time for traversal. This is why they are ubitquitous in database management systems and have become an ever increasingly important data structure for modern filesystems. This document provides an introduction to the design architecture and algorithmic implementation to the B-Tree variant implemented and used in this filesystem.
 
-### B-Tree Structure
+#### B-Tree Structure
 
 The nodes in the B-Tree have the following structure:
 
@@ -23,53 +23,43 @@ struct BTreeNode {
 }
 ```
 
-### B-Tree Operations
+#### B-Tree Operations
 
 This implementation contains the following core operations:
 
 ```
-uint64_t btree_search(DiskInterface* disk, uint64_t root_block, uint64_t key);
-int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key);
-int btree_delete(DiskInterface* disk, uint64_t root_block, uint64_t key);
+btree_search(DiskInterface, root_block, key);
+btree_insert(DiskInterface, root_block, key);
+btree_delete(DiskInterface, root_block, key);
 ```
 
-## Algorithm analysis
+### Algorithm analysis
 
-### Core B-Tree Operations
+#### Core B-Tree Operations
 
-#### B-Tree Search
+##### B-Tree Search
 
 ```
-
-uint64_t btree_search(DiskInterface* disk, uint64_t node_block, uint64_t key)
-{
-	BTreeNode *node = (BTreeNode*)get_block(disk, node_block);
+btree_search:
+	start at root block
 	
-	if (node->is_leaf) {
-		// Base case: we're at a leaf node
-		if (node->key == key) {
-			printf("Found key!\n");
-			return node->block_number;
-		} else {
-			return -1;  // Key not found
-		}
-	} else {
-		// Recursive case: search all children
-		for (int i = 0; i <= node->num_keys; i++) {
-			if (node->children[i] != 0) {
-				uint64_t result = btree_search(disk, node->children[i], key);
-				if (result != -1) {
-					return result;  // Found in child subtree
-				}
-			}
-		}
-		printf("Did not find key!\n");
-		return -1;  // Key not found in any subtree
-	}
-}
-
+	if current block is a leaf:
+		if the key is equal to the search key:
+			print "Found key!"
+			return block number
+		else;
+			return -1
+	
+	else:
+		for i in range of the number of keys:
+			if child[i] != 0:
+				result = btree_search child[i]
+				if result != -1:
+					return result
+		print "Did not find key!"
+		return -1
 ```
-#### B-Tree Insertion
+##### B-Tree Insertion
 
 ```
 
@@ -357,7 +347,7 @@ int btree_insert(DiskInterface* disk, uint64_t root_block, uint64_t key)
 	return 0;
 }
 ```
-#### B-Tree Deletion
+##### B-Tree Deletion
 ```
 int btree_delete(DiskInterface* disk, uint64_t root_block, uint64_t key)
 {
